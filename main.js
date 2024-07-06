@@ -264,8 +264,22 @@ function spawnEnemyBee() {
     const x = Phaser.Math.Between(config.width * 0.1, config.width * 0.7);
     const bee = enemybees.create(x, config.height * 0.02, 'enemybee');
     bee.setScale(0.10); // Adjust the scale of the spawned bee (0.5 means 50% of the original size)
-    bee.setVelocity(Phaser.Math.Between(-250, 250), 20);
-   
+    bee.setVelocity(Phaser.Math.Between(-50, 110), 20);
+    // Add a custom property to keep track of time for the sine wave
+    bee.oscillationTime = 0;
+
+    // Use a Phaser Timer to update the bee's position periodically
+    this.time.addEvent({
+        delay: 50, // Update every 50ms
+        callback: function() {
+            bee.oscillationTime += 0.03; // Increment time
+            // Set horizontal velocity to follow a sine wave pattern
+            const oscillationAmplitude = 650; // Adjust this value to change the amplitude of the sine wave
+            bee.setVelocityX(oscillationAmplitude * Math.sin(bee.oscillationTime));
+        },
+        callbackScope: this,
+        loop: true
+    });
     this.physics.add.overlap(dog, bee, function (dog, bee) {
         damage(bee);
     });

@@ -11,7 +11,7 @@ class PlayerProjectile extends Phaser.Physics.Arcade.Sprite {
         this.setActive(false);
         this.setVisible(false);
    
-            scene.physics.add.overlap(bosses, this, (projectile,temp_boss ) => {
+        scene.physics.add.overlap(bosses, this, (projectile,temp_boss ) => {
                 if (!isHitCooldownPlayer) {
                     projectile.setActive(false);
                     projectile.setVisible(false);
@@ -25,7 +25,35 @@ class PlayerProjectile extends Phaser.Physics.Arcade.Sprite {
                 }
                 
             });
-        
+        scene.physics.add.overlap(enemybees, this, (projectile,temp_boss ) => {
+                if (!isHitCooldownPlayer) {
+                    projectile.setActive(false);
+                    projectile.setVisible(false);
+                    let children = enemybees.getChildren();
+                    enemybees.children.entries[children.length - 1].disableBody(true, true);
+                    dog.score+=20;
+                    isHitCooldownPlayer = true;
+                    scene.time.delayedCall(hitCooldownDurationPlayer, () => {
+                        isHitCooldownPlayer = false;
+                    });
+                }
+                
+            });
+        scene.physics.add.overlap(hoover, this, (projectile,temp_boss ) => {
+                if (!isHitCooldownPlayer) {
+                    projectile.setActive(false);
+                    projectile.setVisible(false);
+                    let children = hoover.getChildren();
+                    hoover.children.entries[children.length - 1].disableBody(true, true);
+    
+                    dog.score+=20;
+                    isHitCooldownPlayer = true;
+                    scene.time.delayedCall(hitCooldownDurationPlayer, () => {
+                        isHitCooldownPlayer = false;
+                    });
+                }
+                
+            });
     }
 
     fire(x, y) {

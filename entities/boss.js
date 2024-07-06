@@ -25,7 +25,7 @@ class Boss extends Phaser.Physics.Arcade.Sprite {
 
         // Start the timer to spawn projectiles
         this.projectileTimer = this.scene.time.addEvent({
-            delay: Phaser.Math.Between(800, 1500), // time in ms between projectiles
+            delay: Phaser.Math.Between(500, 1700), // time in ms between projectiles
             callback: this.spawnProjectile,
             callbackScope: this,
             loop: true
@@ -43,16 +43,17 @@ class Boss extends Phaser.Physics.Arcade.Sprite {
             projectile.setVisible(true);
             projectile.setScale(0.13)
             projectile.fire(this.x, this.y);
+            projectile.body.reset(this.x, this.y+Phaser.Math.Between(-250, -10));
+            projectile.setVelocityX(-Phaser.Math.Between(300, 1000));
         }
     }
 
     takeDamage(amount) {
         this.boss_health -= amount;
-        console.log(amount)
-        console.log(this.boss_health)
+        
         if (this.boss_health <= 0) {
             this.die();
-            
+            dog.score+=350;
           
         }
     }
