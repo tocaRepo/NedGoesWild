@@ -29,16 +29,17 @@ let extrascores;
 let enemybees;
 let enemychocolates;
 let bosses;
-
-
-
+let movement_upgrades_collected = 0;
+let temporary_boost = 1;
+let score = 0;
 let scoreText;
-
-
+let jumpCount = 0; // Track the number of jumps
+let is_alive = true;
+let health = 3;
 let livesText;
 let gameTime = 0; // Track the elapsed game time
 let groundSpeed = -30;
-
+let isBossActive = false;
 // Initial spawn intervals (in milliseconds)
 let beeSpawnInterval = Phaser.Math.Between(1200, 3200);
 let enemyBeeSpawnInterval = Phaser.Math.Between(4000, 10000);
@@ -52,8 +53,6 @@ function preload() {
 
     this.load.image('dog_jump', 'assets/dog_jump2.png');
     this.load.image('dog_dead', 'assets/dog_dead2.png');
-    this.load.image('dog_attack1', 'assets/dog_attack1.png');
-
     this.load.image('bee', 'assets/bee.png');
     this.load.image('ground', 'assets/ground.png'); // Optional: load a ground image
     this.load.image('background', 'assets/background_alt.jpg'); // Load a background image
@@ -64,7 +63,6 @@ function preload() {
     this.load.image('extrascore', 'assets/extrascore.png'); // Load the extrascore object
     this.load.image('boss1', 'assets/boss1.png'); // Load the upgrade object
     this.load.image('projectile1', 'assets/projectile1.png'); // Load the upgrade object
-    this.load.image('dogprojectile1', 'assets/dog_projectile1.png'); // Load the upgrade object
 
     this.load.spritesheet('dog_walk', 'assets/dog_walk.png', {
         frameWidth: 328,  // width of each frame
@@ -96,17 +94,31 @@ function create() {
         floatingSegment.body.checkCollision.left = false;
         floatingSegment.body.checkCollision.right = false;
     }
-    cursors = this.input.keyboard.createCursorKeys();
-    spacebar = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
-    a = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.A);
-
-    dog = new Dog(this, config.width * 0.1, config.height * 0.58);
 
 
+     // Define the walking animation for the llama
+     this.anims.create({
+        key: 'dog_walk',
+        frames: this.anims.generateFrameNumbers('dog_walk', { start: 0, end: 1 }),  // Adjust start and end based on your sprite sheet
+        frameRate: 4,  // frames per second
+        repeat: -1      // loop the animation
+    });
 
-
-    //this.physics.world.createDebugGraphic();
     
+
+    dog = this.physics.add.sprite(config.width * 0.1, config.height * 0.58, 'dog_walk');
+    dog.setCollideWorldBounds(true);
+    // dog.setScale(0.11 ); // Adjust the scale of the dog
+    dog.setScale(0.25 ); // Adjust the scale of the dog 
+    dog.flipX = true;
+    dog.play('dog_walk');
+
+    // Add collision between dog and ground
+    this.physics.add.collider(dog, ground);
+    this.physics.add.collider(dog, floating_ground);
+    // Ensure the dog has a physics body
+    dog.body.setGravityY(300);
+    this.physics.world.createDebugGraphic();
     hoover = this.physics.add.group({
         key: 'hoover',
         visible: false, // Initially hide the group
@@ -139,7 +151,9 @@ function create() {
     });
     bosses = this.physics.add.group({ classType: Boss, runChildUpdate: true });
 
-  
+    cursors = this.input.keyboard.createCursorKeys();
+    spacebar = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
+
     scoreText = this.add.text(config.width * 0.01, config.height * 0.01, 'Score: 0', {
         fontSize: '32px',
         fill: '#fff',
@@ -150,7 +164,7 @@ function create() {
         }
     });
     
-    livesText = this.add.text(config.width * 0.8, config.height * 0.01, 'Lives: ' + dog.health, {
+    livesText = this.add.text(config.width * 0.8, config.height * 0.01, 'Lives: ' + health, {
         fontSize: '32px',
         fill: '#EE4B2B',
         backgroundColor: '#000', // Set background color to black
@@ -187,7 +201,7 @@ function create() {
         loop: true
     });
     this.time.addEvent({
-        delay: Phaser.Math.Between(15000, 30000), // Random delay between 10 to 20 seconds
+        delay: Phaser.Math.Between(1000, 2000), // Random delay between 10 to 20 seconds
         callback: spawnBosses,
         callbackScope: this,
         loop: true
@@ -218,10 +232,42 @@ function update(time, delta) {
         enemyBeeSpawnInterval = Phaser.Math.Between(enemyBeenewSpawnRate, enemyBeenewSpawnRate * 1.5);
         enemyChocolateSpawnInterval = Phaser.Math.Between(enemyChocolatenewSpawnRate, enemyChocolatenewSpawnRate * 2);
     }
-    scoreText.setText('Score: ' + dog.score);
-    livesText.setText('Health: ' + dog.health);
-    // Update the dog's state
-    dog.update(cursors, spacebar,a, groundSpeed);
+    scoreText.setText('Score: ' + score);
+    livesText.setText('Lives: ' + health);
+    if (health <= 0) {
+        is_alive = false;
+    }
+    if (is_alive) {
+        if (dog.body.touching.down) {
+            jumpCount = 0;
+            //dog.setTexture('dog');
+            if(!dog.anims.isPlaying){
+              dog.play('dog_walk');
+            }
+        }
+        if (cursors.left.isDown) {
+            dog.setVelocityX(((-160 + groundSpeed) - (movement_upgrades_collected * 51)) * temporary_boost);
+            dog.flipX = false; // Flip the sprite horizontally
+        } else if (cursors.right.isDown) {
+            dog.setVelocityX(((160 - groundSpeed) + (movement_upgrades_collected * 51)) * temporary_boost);
+            dog.flipX = true; // Do not flip the sprite (facing right)
+        } else {
+            dog.setVelocityX(0);
+        }
+
+        if ((cursors.up.isDown || spacebar.isDown) && (dog.body.touching.down || jumpCount < 10)) {
+            dog.setVelocityY(-390 - (movement_upgrades_collected * 25));
+            jumpCount++;
+            dog.stop();
+            dog.setTexture('dog_jump');
+            
+        }
+    } else {
+        dog.stop();
+        dog.setTexture('dog_dead');
+        dog.setScale(0.10 );
+        dog.setVelocityX(0);
+    }
 
     // Iterate over each ground segment
     ground.children.iterate(function (child) {
@@ -243,8 +289,8 @@ function update(time, delta) {
 }
 
 function damage(enemy) {
-    dog.takeDamage(1);
-    dog.score -= 95;
+    health--;
+    score -= 95;
     enemy.disableBody(true, true);
   
 }
@@ -285,7 +331,7 @@ function spawnBee() {
     bee.setBounceY(Phaser.Math.FloatBetween(0.4, 0.8));
     this.physics.add.overlap(dog, bee, function (dog, bee) {
         bee.disableBody(true, true); // Disable and hide the upgrade object
-        dog.score += 5;
+        score += 5;
     });
 }
 
@@ -305,20 +351,15 @@ function spawnHoover() {
     });
 }
 function spawnBosses() {
-   
+    if(!isBossActive){
         const x = this.scale.width * 0.9;
         const y = this.scale.height * 0.375;
         const boss = new Boss(this, x, y, 'boss1');
     
         bosses.add(boss);
-
-
-bosses.children.each(function(boss) {
-    console.log(boss); // Print each boss object to the console
-});
     }
     
-
+}
 function spawnUpgrades() {
     const x = Phaser.Math.Between(config.width*0.1, config.width*0.7);
     const upgradeObject = upgrades.create(x, config.height * 0.02, 'upgrade');
@@ -327,8 +368,8 @@ function spawnUpgrades() {
     
     this.physics.add.overlap(dog, upgradeObject, function (dog, upgrade) {
         upgrade.disableBody(true, true); // Disable and hide the upgrade object
-        dog.movement_upgrades_collected++; // Increment the count of collected upgrades
-        dog.score += 50;
+        movement_upgrades_collected++; // Increment the count of collected upgrades
+        score += 50;
         
         applyPowerUpEffect.call(this, 'speedBoost');
     }, null, this);
@@ -336,9 +377,9 @@ function spawnUpgrades() {
 
 function applyPowerUpEffect(type) {
     if (type === 'speedBoost') {
-        dog.temporary_boost = 2;
+        temporary_boost = 2;
         this.time.delayedCall(4000, () => {
-            dog.temporary_boost = 1;
+            temporary_boost = 1;
         });
     }
     // Implement other power-up effects similarly
@@ -352,8 +393,8 @@ function spawnExtraScores() {
     
     this.physics.add.overlap(dog, extrascore, function (dog, extrascoreObject) {
         extrascoreObject.disableBody(true, true); // Disable and hide the upgrade object
-        dog.score += 100;
-        dog.health++;
+        score += 100;
+        health++;
   
     });
 }
